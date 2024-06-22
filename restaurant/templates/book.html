@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<section>
+    <article>
+        <h1>Make a reservation</h1>
+        <!--Begin row-->
+        <div class="row">
+            <!--Begin col-->
+            <div class="column">
+                {% csrf_token %}
+                <form method="POST" id="form">
+                    <!-- {% csrf_token %} -->
+                    <p>
+                        <label for="first_name">Name:</label>
+                        <input type="text" placeholder="Your Name" maxlength="200" required id="first_name">
+                    </p>
+                    <p>
+                        <label for="reservation_date">Name:</label>
+                        <input type="date" id="reservation_date" required onfocus="disablePastDates()" />
+                    </p>
+
+                    <p>
+                        <label for="reservation_slot">Reservation time:</label>
+                        <select id="reservation_slot" required>
+                            <option disabled value="default" selected>Select time</option>
+                            <option value="10">10:00</option>
+                            <option value="11">11:00</option>
+                            <option value="12">12:00</option>
+                            <option value="13">13:00</option>
+                            <option value="14">14:00</option>
+                            <option value="15">15:00</option>
+                            <option value="16">16:00</option>
+                            <option value="17">17:00</option>
+                            <option value="18">18:00</option>
+                            <option value="19">19:00</option>
+                            <option value="20">20:00</option>
+                        </select>
+                    </p>
+                    <button type="button" id="button">Reserve</button>
+                </form>
+            </div>
+            <!--End col-->
+
+            <!--Begin col-->
+            <div class="column">
+                <h2>Bookings For <span id="today">-</span></h2>
+                <div id="bookings">
+                    No bookings
+                </div>
+            </div>
+            <!--End col-->
+        </div>
+        <!--End row-->
+
+
+
+
+    </article>
+</section>
+<script>
+
+    function disablePastDates() {
+        var today = new Date();
+        var dd = String(today.getDate()).padStart(2, '0');
+        var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+        var yyyy = today.getFullYear();
+
+        today = yyyy + '-' + mm + '-' + dd;
+        document.getElementById("reservation_date").setAttribute("min", today);
+    }
+    // Agregar un evento al botón para obtener la fecha
+    document.getElementById('button').addEventListener('click', function () {
+
+        const reservation_slot = (document.getElementById('reservation_slot').value);
+        const first_name = document.getElementById('first_name').value;
+        const reservation_date = document.getElementById('reservation_date').value;
+
+        if (reservation_slot === "default" || first_name === "" || reservation_date === "") {
+            alert("Please complete all fields.");
+        } else {
+            const formdata = {
+                first_name: first_name,
+                reservation_date: reservation_date,
+                reservation_slot: reservation_slot,
+            }
+
+            fetch("{% url 'bookings' %}", { method: 'post', body: JSON.stringify(formdata) })
+                .then(r => r.text())
+                .then(data => {
+                    getBookings()
+                })
+        }
+
+
+    });
+
+    function getBookings() {
+        const date = document.getElementById('reservation_date').value;
+        const reservationsTime = document.getElementById('reservation_slot');
+        let reservedSlotsTime = []
+        document.getElementById('today').innerHTML = date
+
+        fetch("{% url 'bookings' %}" + '?date=' + date)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                dataJson = JSON.parse(data.bookings)
+                let bookingsHtml = '';
+                dataJson.map(booking => {
+                    const time = booking.fields.reservation_slot
+                    bookingsHtml += `<p>${time} : 00 - ${booking.fields.first_name}</p>`
+                    reservedSlotsTime.push(booking.fields.reservation_slot)
+                })
+
+                for (let index = 0; index < reservedSlotsTime.length; index++) {
+                    for (let i = 0; i < reservationsTime.options.length; i++) {
+                        if (reservationsTime.options[i].value == reservedSlotsTime[index]) {
+                            reservationsTime.options[i].disabled = true;
+                        }
+                    }
+                }
+                document.getElementById('bookings').innerHTML = bookingsHtml;
+            })
+            .catch(error => {
+                console.error('Error fetching bookings:', error);
+            });
+    }
+
+</script>
+{% endblock %}
